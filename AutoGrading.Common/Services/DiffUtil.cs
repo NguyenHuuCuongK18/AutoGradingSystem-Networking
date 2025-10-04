@@ -46,5 +46,42 @@ namespace AutoGrading.Common.Services
             }
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Compares actual outputs against expected outputs for all steps and returns awarded points.
+        /// Assumes points are divided evenly per step.
+        /// Expansion: Add weighted scoring or custom diff thresholds.
+        /// </summary>
+        public static int CompareSteps(List<(int Step, string Input, string ServerOutput, string ClientOutput)> steps, (string ClientActual, string ServerActual) actualOutputs)
+        {
+            int awarded = 0;
+            double pointsPerStep = 100.0 / steps.Count;  // Example total points; adjust as needed
+
+            for (int i = 0; i < steps.Count; i++)
+            {
+                var expectedServer = steps[i].ServerOutput;
+                var expectedClient = steps[i].ClientOutput;
+                var actualServer = i < actualOutputs.ServerActual.Split('\n').Length ? actualOutputs.ServerActual.Split('\n')[i] : "";
+                var actualClient = i < actualOutputs.ClientActual.Split('\n').Length ? actualOutputs.ClientActual.Split('\n')[i] : "";
+
+                bool serverMatch = Normalize(expectedServer) == Normalize(actualServer);
+                bool clientMatch = Normalize(expectedClient) == Normalize(actualClient);
+
+                if (serverMatch && clientMatch)
+                {
+                    awarded += (int)Math.Ceiling(pointsPerStep);
+                }
+            }
+            return awarded;
+        }
+
+        /// <summary>
+        /// Checks if two outputs are equal after normalization.
+        /// Expansion: Add tolerance for floating-point or custom matching.
+        /// </summary>
+        public static bool AreOutputsEqual(string expected, string actual)
+        {
+            return Normalize(expected) == Normalize(actual);
+        }
     }
 }

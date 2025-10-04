@@ -7,21 +7,31 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <StackPanel Margin="10">
-        <TextBlock Text="Test Case Name:" Margin="5"/>
-        <TextBox Text="{Binding TestCaseName, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="5"/>
-        <TextBox Text="{Binding ConsoleOutput}" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Visible" Height="300" Margin="5"/>
-        <TextBlock Text="{Binding StageLabel}" Margin="5"/>
+        <TextBlock Text="Test Case Name:" Margin="5" ToolTip="Enter a unique name for the test case (letters, numbers, underscores, or hyphens)."/>
+        <TextBox Text="{Binding TestCaseName, UpdateSourceTrigger=PropertyChanged}" Width="300" ToolTip="Enter a unique name for the test case."/>
         <StackPanel Orientation="Horizontal" Margin="5">
-            <TextBlock Text="Input:" Margin="5"/>
-            <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="5"/>
-            <Button Content="Submit Input" Command="{Binding SubmitInputCommand}" Margin="5"/>
+            <TextBlock Text="Total Points:" Margin="5" VerticalAlignment="Center" ToolTip="Enter a positive integer for test case points."/>
+            <TextBox Text="{Binding TotalPoints, UpdateSourceTrigger=PropertyChanged}" Width="50" Margin="5" ToolTip="Enter a positive integer for points."/>
+        </StackPanel>
+        <Button Content="Start" Command="{Binding StartCommand}" Margin="5" HorizontalAlignment="Center" ToolTip="Start the test case process (requires valid name and points)."/>
+        <DataGrid ItemsSource="{Binding StepData}" AutoGenerateColumns="False" Margin="5" Height="300" ToolTip="Step-by-step data from the test case process." CanUserAddRows="False" CanUserDeleteRows="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Step" Binding="{Binding StepNumber}" Width="*" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Input" Binding="{Binding InputText}" Width="*" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Output Server" Binding="{Binding ServerOutput}" Width="*" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Output Client" Binding="{Binding ClientOutput}" Width="*" IsReadOnly="True"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock Text="{Binding StageLabel}" Margin="5" ToolTip="Current stage of the test case generation."/>
+        <StackPanel Orientation="Horizontal" Margin="5">
+            <TextBlock Text="Input:" Margin="5" ToolTip="Input to send to the client process."/>
+            <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" Width="200" Margin="5" ToolTip="Enter input for the current test case step."/>
+            <Button Content="Submit Input" Command="{Binding SubmitInputCommand}" Margin="5" ToolTip="Submit the input to the client process."/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
-            <TextBlock Text="Total Points:" Margin="5" VerticalAlignment="Center"/>
-            <TextBox Text="{Binding TotalPoints, UpdateSourceTrigger=PropertyChanged}" Width="50" Margin="5"/>
-            <Button Content="Record" Command="{Binding RecordCommand}" Margin="5"/>
-            <Button Content="End Processes" Command="{Binding EndProcessesCommand}" Margin="5"/>
-            <Button Content="Back to View" Command="{Binding BackToViewCommand}" Margin="5"/>
+            <Button Content="Record" Command="{Binding RecordCommand}" Margin="5" ToolTip="Record the test case to a file."/>
+            <Button Content="End Processes" Command="{Binding EndProcessesCommand}" Margin="5" ToolTip="Stop the client and server processes."/>
+            <Button Content="Back to View" Command="{Binding BackToViewCommand}" Margin="5" ToolTip="Return to the test case view screen."/>
         </StackPanel>
     </StackPanel>
 </UserControl>

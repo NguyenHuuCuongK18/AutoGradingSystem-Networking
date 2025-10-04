@@ -51,6 +51,15 @@ namespace AutoGrading.Common.Services
             return (headerInfo, barem);
         }
 
+        /// <summary>
+        /// Reads only the barem dictionary from header.xlsx.
+        /// </summary>
+        public static Dictionary<string, int> ReadBarem(string headerPath)
+        {
+            var (_, barem) = ReadGlobalHeader(headerPath);
+            return barem;
+        }
+
         public static void WriteOrUpdateGlobalHeader(string headerPath, Dictionary<string, string> headerInfo, Dictionary<string, int> barem)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(headerPath) ?? ".");

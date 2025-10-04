@@ -9,6 +9,15 @@ namespace AutoGradingSystem
         {
             InitializeComponent();
             DataContext = new GradingViewModel();
+            this.Closing += MainWindow_Closing;
+        }
+
+        private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (DataContext is GradingViewModel vm)
+            {
+                vm.Cleanup();
+            }
         }
     }
 }

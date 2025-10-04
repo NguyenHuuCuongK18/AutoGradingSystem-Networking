@@ -1,43 +1,71 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using AutoGrading.Common.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using Ookii.Dialogs.Wpf;
 using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using AutoGrading.Common.Services;
-using Ookii.Dialogs.Wpf;
 using TestKitGeneration.Views;
 
 namespace TestKitGeneration.ViewModels
 {
-    /// <summary>
-    /// ViewModel for test case generation with multi-screen flow: Setup -> View -> Generate.
-    /// Manages client/server paths, test case creation, and output capture.
-    /// Expansion: Add path validation, progress indicators, or test case deletion.
-    /// </summary>
     public partial class GeneratorViewModel : ObservableObject
     {
-        [ObservableProperty] private string clientPath = "";
-        [ObservableProperty] private string serverPath = "";
-        [ObservableProperty] private string saveLocation = "";
-        [ObservableProperty] private string testCaseName = "";
-        [ObservableProperty] private string consoleOutput = "";
-        [ObservableProperty] private string stageLabel = "Current Stage: 1";
-        [ObservableProperty] private string inputText = "";
-        [ObservableProperty] private string totalPoints = "0";
-        [ObservableProperty] private List<string> currentTestCases = new();
-        [ObservableProperty] private UserControl currentScreen;
+        [ObservableProperty]
+        private string clientPath = "";
+
+        [ObservableProperty]
+        private string serverPath = "";
+
+        [ObservableProperty]
+        private string saveLocation = "";
+
+        [ObservableProperty]
+        private string testCaseName = "";
+        partial void OnTestCaseNameChanged(string value)
+        {
+            if (!string.IsNullOrEmpty(value) && !Regex.IsMatch(value, @"^[A-Za-z0-9_-]+$"))
+            {
+                MessageBox.Show("Test case name can only contain letters, numbers, underscores, or hyphens.", "Invalid Input");
+                TestCaseName = "";
+            }
+            Console.WriteLine($"TestCaseName changed to: {value}");
+        }
+
+        [ObservableProperty]
+        private ObservableCollection<StepDataItem> stepData = new();
+
+        [ObservableProperty]
+        private string stageLabel = "Current Stage: 1";
+
+        [ObservableProperty]
+        private string inputText = "";
+
+        [ObservableProperty]
+        private string totalPoints = "0";
+        partial void OnTotalPointsChanged(string value)
+        {
+            Console.WriteLine($"TotalPoints changed to: {value}");
+        }
+
+        [ObservableProperty]
+        private ObservableCollection<string> currentTestCases = new();
+
+        [ObservableProperty]
+        private UserControl currentScreen;
 
         private ProcessRunner? clientRunner;
         private ProcessRunner? serverRunner;
         private int currentStage = 1;
         private readonly List<string> inputs = new();
         private readonly List<(string ClientOut, string ServerOut)> stepOutputs = new();
-        private const int OutputDelayMs = 500;  // Expansion: Configurable delay
+        private const int OutputDelayMs = 500;
 
         public GeneratorViewModel()
         {
@@ -79,12 +107,10 @@ namespace TestKitGeneration.ViewModels
                 return;
             }
 
-            // Load existing test cases
-            CurrentTestCases = Directory.GetDirectories(SaveLocation)
+            CurrentTestCases = new ObservableCollection<string>(Directory.GetDirectories(SaveLocation)
                 .Select(Path.GetFileName)
                 .Where(name => name != null)
-                .Cast<string>()
-                .ToList();
+                .Cast<string>());
 
             CurrentScreen = new ViewScreen();
         }
@@ -92,9 +118,8 @@ namespace TestKitGeneration.ViewModels
         [RelayCommand]
         private void CreateNewTestCase()
         {
-            // Clear previous test case data
             TestCaseName = "";
-            ConsoleOutput = "";
+            StepData.Clear();
             StageLabel = "Current Stage: 1";
             InputText = "";
             TotalPoints = "0";
@@ -110,7 +135,12 @@ namespace TestKitGeneration.ViewModels
         {
             if (string.IsNullOrEmpty(TestCaseName))
             {
-                MessageBox.Show("Test case name required.", "Error");
+                MessageBox.Show("Test case name is required.", "Warning");
+                return;
+            }
+            if (!int.TryParse(TotalPoints, out int points) || points <= 0)
+            {
+                MessageBox.Show("Total points must be a valid positive integer.", "Warning");
                 return;
             }
 
@@ -125,18 +155,19 @@ namespace TestKitGeneration.ViewModels
             serverRunner = new ProcessRunner();
             clientRunner = new ProcessRunner();
 
-            serverRunner.OnStdoutLine += line => AppendConsole(line);
-            clientRunner.OnStdoutLine += line => AppendConsole(line);
+            serverRunner.OnStdoutLine += line => { };
+            clientRunner.OnStdoutLine += line => { };
 
             try
             {
                 await serverRunner.StartAsync(ServerPath);
                 await clientRunner.StartAsync(ClientPath);
-                AppendConsole("Processes started.\n");
+                StepData.Clear();
+                StepData.Add(new StepDataItem { StepNumber = 1, InputText = "(none project just started)", ServerOutput = "", ClientOutput = "" });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to start: {ex.Message}", "Error");
+                MessageBox.Show($"Failed to start processes: {ex.Message}", "Error");
                 Cleanup();
             }
         }
@@ -152,12 +183,18 @@ namespace TestKitGeneration.ViewModels
 
             inputs.Add(InputText);
             await clientRunner.WriteInputAsync(InputText);
+
             await Task.Delay(OutputDelayMs);
 
             var clientDelta = clientRunner.ReadAndClearBuffer();
             var serverDelta = serverRunner?.ReadAndClearBuffer() ?? "";
 
             stepOutputs.Add((clientDelta, serverDelta));
+            StepData.Clear();
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                StepData.Add(new StepDataItem { StepNumber = i + 1, InputText = inputs[i], ServerOutput = stepOutputs[i].ServerOut, ClientOutput = stepOutputs[i].ClientOut });
+            }
 
             InputText = "";
             currentStage++;
@@ -192,15 +229,12 @@ namespace TestKitGeneration.ViewModels
             var headerPath = Path.Combine(SaveLocation, "header.xlsx");
             HeaderManager.UpdateOrAddBaremEntry(headerPath, TestCaseName, points);
 
-            AppendConsole("Test case recorded.\n");
             Cleanup();
 
-            // Return to View Screen
-            CurrentTestCases = Directory.GetDirectories(SaveLocation)
+            CurrentTestCases = new ObservableCollection<string>(Directory.GetDirectories(SaveLocation)
                 .Select(Path.GetFileName)
                 .Where(name => name != null)
-                .Cast<string>()
-                .ToList();
+                .Cast<string>());
             CurrentScreen = new ViewScreen();
 
             MessageBox.Show("Recorded successfully.", "Success");
@@ -210,27 +244,20 @@ namespace TestKitGeneration.ViewModels
         private void EndProcesses()
         {
             Cleanup();
-            AppendConsole("Processes ended.\n");
         }
 
         [RelayCommand]
         private void BackToView()
         {
             Cleanup();
-            CurrentTestCases = Directory.GetDirectories(SaveLocation)
+            CurrentTestCases = new ObservableCollection<string>(Directory.GetDirectories(SaveLocation)
                 .Select(Path.GetFileName)
                 .Where(name => name != null)
-                .Cast<string>()
-                .ToList();
+                .Cast<string>());
             CurrentScreen = new ViewScreen();
         }
 
-        private void AppendConsole(string text)
-        {
-            ConsoleOutput += text;
-        }
-
-        private void Cleanup()
+        public void Cleanup()
         {
             clientRunner?.Dispose();
             serverRunner?.Dispose();
@@ -238,8 +265,17 @@ namespace TestKitGeneration.ViewModels
             serverRunner = null;
             inputs.Clear();
             stepOutputs.Clear();
+            StepData.Clear();
             currentStage = 1;
             StageLabel = "Current Stage: 1";
         }
+    }
+
+    public class StepDataItem
+    {
+        public int StepNumber { get; set; }
+        public string InputText { get; set; } = "";
+        public string ServerOutput { get; set; } = "";
+        public string ClientOutput { get; set; } = "";
     }
 }

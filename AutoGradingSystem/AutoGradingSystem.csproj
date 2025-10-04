@@ -15,4 +15,7 @@
 <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
     <ProjectReference Include="..\AutoGrading.Common\AutoGrading.Common.csproj" />
   </ItemGroup>
+<ItemGroup>
+  <Folder Include="Properties\" />
+</ItemGroup>
 </Project>
